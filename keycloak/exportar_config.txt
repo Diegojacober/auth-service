@@ -1,0 +1,7 @@
+entrar no container -  sudo docker exec -it 026de6ff63c2 /bin/bash
+cd /opt/keycloak/bin
+ls
+./kc.sh export --file /tmp/keycloak.json
+cd /tmp
+cat keycloak.json
+sudo docker cp id:/tmp/keycloak.json ./keycloak/
