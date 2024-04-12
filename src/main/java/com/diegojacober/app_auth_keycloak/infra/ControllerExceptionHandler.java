@@ -1,6 +1,8 @@
 package com.diegojacober.app_auth_keycloak.infra;
 
-import static org.springframework.http.HttpStatus.*;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.METHOD_NOT_ALLOWED;
+import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -49,6 +51,8 @@ public class ControllerExceptionHandler {
         return ResponseEntity.status(UNAUTHORIZED).body(exceptionDTO);
     }
 
+    // HttpMessageNotReadableException
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(BAD_REQUEST)
     public ApiErrors handleMethodNotValidException(MethodArgumentNotValidException ext) {
@@ -56,5 +60,12 @@ public class ControllerExceptionHandler {
                 .collect(Collectors.toList());
 
         return new ApiErrors(errors);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(BAD_REQUEST)
+    public ResponseEntity<Object> handleIllegalArgumentException(IllegalArgumentException ex) {
+        ExceptionDTO exceptionDTO = new ExceptionDTO("Role inválida", "400");
+        return ResponseEntity.status(BAD_REQUEST).body(exceptionDTO);
     }
 }
