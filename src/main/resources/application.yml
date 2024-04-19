@@ -5,6 +5,13 @@ spring:
         jwt:
           issuer-uri: http://localhost:8181/realms/test
           jwk-set-uri: ${spring.security.oauth2.resourceserver.jwt.issuer-uri}/protocol/openid-connect/certs
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: 160000000
+            readTimeout: 160000000
 
 server:
   port: 8082

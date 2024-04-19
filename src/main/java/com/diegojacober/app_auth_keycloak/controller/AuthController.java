@@ -1,5 +1,6 @@
 package com.diegojacober.app_auth_keycloak.controller;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -20,10 +21,13 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.diegojacober.app_auth_keycloak.dtos.CreateUserKeycloak;
+import com.diegojacober.app_auth_keycloak.dtos.CredentialsRequestDTO;
 import com.diegojacober.app_auth_keycloak.dtos.LoginDTO;
 import com.diegojacober.app_auth_keycloak.dtos.RefreshDTO;
 import com.diegojacober.app_auth_keycloak.dtos.RequestNewRoleDTO;
 import com.diegojacober.app_auth_keycloak.dtos.RoleDTO;
+import com.diegojacober.app_auth_keycloak.dtos.UserDTO;
 import com.diegojacober.app_auth_keycloak.dtos.enums.Role;
 import com.diegojacober.app_auth_keycloak.exceptions.IncorrectBodyException;
 import com.diegojacober.app_auth_keycloak.exceptions.IncorrectCredentialsException;
@@ -48,7 +52,6 @@ public class AuthController {
         formData.add("password", user.getPassword());
         formData.add("grant_type", "password");
         formData.add("client_secret", "6gwYLM1MOMfYG6cX1lZgjPkOeauPTKSZ");
-
         try {
             return authServiceClient.getToken(formData);
         } catch (FeignException.Unauthorized ex) {
@@ -72,6 +75,50 @@ public class AuthController {
         } catch (FeignException.FeignClientException ex) {
             throw new IncorrectCredentialsException("Credenciais incorretas.");
         }
+    }
+
+    @PostMapping("/users")
+    @PreAuthorize("hasRole('instructor')")
+    public ResponseEntity<String> createUser(@RequestHeader HttpHeaders headers, @RequestBody @Valid UserDTO dto)
+            throws Exception {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Jwt user = (Jwt) authentication.getPrincipal();
+
+        String token = user.getTokenValue();
+        headers.add(HttpHeaders.AUTHORIZATION, ("Bearer " + token));
+
+        var credential = CredentialsRequestDTO
+                .builder()
+                .temporary(false)
+                .type("password")
+                .value(dto.getPassword())
+                .build();
+
+        List<CredentialsRequestDTO> credentials = new ArrayList<>();
+        credentials.add(credential);
+
+        var userKeycloak = CreateUserKeycloak
+        .builder()
+        .attributes(dto.getAttributes())
+        .lastName(dto.getLastName())
+        .firstName(dto.getFirstName())
+        .username(dto.getFirstName() + "_" + dto.getLastName())
+        .credentials(credentials)
+        .email(dto.getFirstName() + dto.getLastName() + "@email.com")
+        .emailVerified(true)
+        .enabled(true)
+        .build();
+
+        // System.out.println(userKeycloak);
+        try {
+            var t =  authServiceClient.createUser(headers, userKeycloak);
+            return ResponseEntity.ok().body("Ok");
+        } catch (FeignException.Unauthorized ex) {
+            throw new IncorrectCredentialsException("Credenciais incorretas.");
+        } catch (feign.RetryableException ex) {
+            System.out.println(ex.getMessage());
+        }
+        return null;
     }
 
     @GetMapping("/userinfo")
@@ -104,9 +151,7 @@ public class AuthController {
         Jwt user = (Jwt) authentication.getPrincipal();
 
         String token = user.getTokenValue();
-        HttpHeaders headersN = new HttpHeaders();
 
-        // headers.add(token, token);
         headers.add(HttpHeaders.AUTHORIZATION, ("Bearer " + token));
 
         try {
@@ -141,7 +186,7 @@ public class AuthController {
         Jwt user = (Jwt) authentication.getPrincipal();
         String token = user.getTokenValue();
         HttpHeaders headers = new HttpHeaders();
-    
+
         System.out.println(dto.getRole());
         String idRole = "";
         if (dto.getRole().equals(Role.APPRENTICE)) {
@@ -184,6 +229,18 @@ public class AuthController {
         }
     }
 
-
-
+    @GetMapping("/users/{role}")
+    @PreAuthorize("hasRole('instructor')")
+    public Object getUsersByRole(@PathVariable String role) throws IncorrectCredentialsException {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            Jwt user = (Jwt) authentication.getPrincipal();
+            String token = user.getTokenValue();
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(HttpHeaders.AUTHORIZATION, ("Bearer " + token));
+            return authServiceClient.getUsersByRole(role, headers);
+        } catch (FeignException.Unauthorized ex) {
+            throw new IncorrectCredentialsException("Credenciais incorretas.");
+        }
+    }
 }
